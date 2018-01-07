@@ -1,6 +1,9 @@
 ﻿using System;
 using Xunit;
 using GGM.ORMTest.Entity;
+using System.Data.Common;
+using System.Data;
+using System.Reflection;
 
 namespace GGM.ORMTest.UnitTest
 {
@@ -17,7 +20,7 @@ namespace GGM.ORMTest.UnitTest
             withoutID.Age = 28;
 
             withID = new Person();
-            withID.ID = 120;
+            withID.ID = 25;
             withID.Name = "withID";
             withID.Address = "Gangnam";
             withID.Email = "yesyes@naver.com";
@@ -27,59 +30,85 @@ namespace GGM.ORMTest.UnitTest
         PersonRepository repository;
         Person withoutID;
         Person withID;
+        
+        
+
+        [Fact]
+        public void ReadAllTest()
+        {
+            var readAll =repository.ReadAll();
+            Assert.NotNull(readAll);
+        }
+
+        [Fact]
+        public void ReadAllParamTest()
+        {
+            var readAllParam = repository.ReadAll(new { id = 1, name = "jinwoo", age = 26, address = "Seoul", email = "jinwoo710@naver.com" });
+            Assert.NotNull(readAllParam);
+        }
+
+        [Fact]
+        public void ReadSingleTest()
+        {
+            var readSingle = repository.Read(1);
+            Assert.NotNull(readSingle);
+        }
 
         [Fact]
         public void CreateNullTest()
         {
-            repository.Create();
-            repository.Create();
+            var createNullInstance = repository.Create();
+            Assert.NotNull(createNullInstance);
+
         }
 
         [Fact]
         public void CreateWithDataTest()
         {
 
-            repository.Create(withID);
-            repository.Create(withoutID);
-        }
+            var createWithID = repository.Create(withID);
+            var createWithoutID = repository.Create(withoutID);
 
-        [Fact]
-        public void ReadAllTest()
-        {
-            repository.ReadAll();
-
-        }
-
-        [Fact]
-        public void ReadAllParamTest()
-        {
-            repository.ReadAll(new { id = 1, name = "jinwoo", age = 26, address = "Seoul", email = "jinwoo710@naver.com" });
-        }
-
-        [Fact]
-        public void ReadSingleTest()
-        {
-            repository.Read(1);
-            repository.Read(4);
+            Assert.NotNull(createWithID);
+            Assert.NotNull(createWithoutID);
         }
 
         [Fact]
         public void DeleteTest()
         {
-            repository.Delete(24522);
+            int id = 1151;
+            repository.Delete(id);
+            var result = repository.Read(id);
+            Assert.Equal(0,result.ID);           
         }
-
+        
         [Fact]
         public void DeleteAllTest()
         {
-            repository.DeleteAll(new { id = 24521, name = "noID", age = 28, address = "Busan", email = "withOutID@naver.com" });
-        }
+            
+            var param = new { id = 151, name = "withoutID", age = 28, address = "Busan", email = "withOutID@naver.com" };
+            repository.DeleteAll(param);
 
+            var result = repository.ReadAll(param).GetEnumerator();
+            result.MoveNext();
+            Assert.Null(result.Current);
+        }
+        
         [Fact]
         public void UpdateWithDataTest()
         {
-            repository.Update(7, withID);
-            repository.Update(8, withoutID);
-        }
+            int id = 152;
+            repository.Update(id, withID);
+
+            var result = repository.Read(id);
+            var copyWithID = withID;
+            copyWithID.ID = id;
+
+            PropertyInfo[] propertyinfos = typeof(Person).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (PropertyInfo property in propertyinfos)
+            {
+                Assert.True(property.GetValue(copyWithID).Equals( property.GetValue(result)));
+            }
+        }  
     }
 }

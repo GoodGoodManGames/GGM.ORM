@@ -4,6 +4,8 @@ using GGM.ORMTest.Entity;
 using System.Reflection;
 using GGM.ORM.Attribute;
 using GGM.ORM;
+using System.Data.Common;
+using MySql.Data.MySqlClient;
 
 namespace GGM.ORMTest.UnitTest
 {
@@ -22,22 +24,13 @@ namespace GGM.ORMTest.UnitTest
         ColumnAttribute columnAttribute;
         ColumnInfo columnInfo;
 
+       
         [Fact]
-        public string GetNameTest()
+        public void GetParamExpressionTest()
         {
-            return columnInfo.Name;
-        }
-
-        [Fact]
-        public string GetParamNameTest()
-        {
-            return columnInfo.ParameterName;
-        }
-
-        [Fact]
-        public string GetParamExpressionTest()
-        {
-            return columnInfo.ParameterExpression;
+            var expression = columnInfo.ParameterExpression;
+            var resultExpression = string.Concat(property.Name.ToLower(), " = @", property.Name.ToLower());
+            Assert.Matches(expression, resultExpression);
         }
     }
 }

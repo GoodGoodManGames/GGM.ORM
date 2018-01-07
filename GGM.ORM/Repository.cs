@@ -16,15 +16,18 @@ namespace GGM.ORM
     {
         public Repository(string assemblyName, string classPath, string dbOptions, IQueryBuilder<T> queryBuilder)
         {
+            ParameterGeneratorCache = new Dictionary<Type, FillParamInfoGenerator>();
+            DataParamGeneratorCache = new Dictionary<Type, FillDataInfoGenerator>();
+            ConstructInstanceCache = new Dictionary<Type, ConstructInstance>();
+            ConstructNullInstanceCache = new Dictionary<Type, ConstructNullInstance>();
+            ConstructDataInstanceCache = new Dictionary<Type, ConstructDataInstance>();
+            ConstructInstancesCache = new Dictionary<Type, ConstructInstances>();
+
             EntityManager = EntityManagerFactory.CreateFactory(assemblyName, classPath, dbOptions).CreateEntityManager();
             QueryBuilder = queryBuilder;
             if (QueryBuilder == null)
                 QueryBuilder = new DefaultQueryBuilder<T>();
         }
-
-        public EntityManager EntityManager { get; }
-        public IQueryBuilder<T> QueryBuilder { get; }
-        public ColumnInfo[] ColumnInfos { get; set; }
 
         public delegate void FillParamInfoGenerator(IDbCommand command, object parameter);
         public delegate void FillDataInfoGenerator(IDbCommand command, T data, int id);
@@ -33,13 +36,15 @@ namespace GGM.ORM
         public delegate T ConstructDataInstance(T data, int id);
         public delegate List<T> ConstructInstances(IDataReader reader);
         
-
-        public Dictionary<Type, FillParamInfoGenerator> ParameterGeneratorCache = new Dictionary<Type, FillParamInfoGenerator>();
-        public Dictionary<Type, FillDataInfoGenerator> DataParamGeneratorCache = new Dictionary<Type, FillDataInfoGenerator>();
-        public Dictionary<Type, ConstructInstance> ConstructInstanceCache = new Dictionary<Type, ConstructInstance>();
-        public Dictionary<Type, ConstructNullInstance> ConstructNullInstanceCache = new Dictionary<Type, ConstructNullInstance>();
-        public Dictionary<Type, ConstructDataInstance> ConstructDataInstanceCache = new Dictionary<Type, ConstructDataInstance>();
-        public Dictionary<Type, ConstructInstances> ConstructInstancesCache = new Dictionary<Type, ConstructInstances>();
+        public Dictionary<Type, FillParamInfoGenerator> ParameterGeneratorCache { get; set; }
+        public Dictionary<Type, FillDataInfoGenerator> DataParamGeneratorCache { get; set; }
+        public Dictionary<Type, ConstructInstance> ConstructInstanceCache { get; set; }
+        public Dictionary<Type, ConstructNullInstance> ConstructNullInstanceCache { get; set; }
+        public Dictionary<Type, ConstructDataInstance> ConstructDataInstanceCache { get; set; }
+        public Dictionary<Type, ConstructInstances> ConstructInstancesCache { get; set; }
+        public EntityManager EntityManager { get; }
+        public IQueryBuilder<T> QueryBuilder { get; }
+        public ColumnInfo[] ColumnInfos { get; set; }
 
         public T Read(int id)
         {
@@ -254,7 +259,7 @@ namespace GGM.ORM
                 il.EmitCall(OpCodes.Callvirt, typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType)).GetSetMethod(), null);//[Parameters][DbParameter]
 
 
-                if(property.Name == primaryKey.Name)
+                if(property.Name.ToLower() == primaryKey.Name.ToLower())
                 {
                     //SetIDValue
                     il.Emit(OpCodes.Dup);//[Parameters][DbParameter][DbParameter]
@@ -371,7 +376,7 @@ namespace GGM.ORM
                 Label notAutoIncrementCase = il.DefineLabel();
                 Label jumpEnd = il.DefineLabel();
                 
-                if (property.Name == primaryKey.Name)
+                if (property.Name.ToLower() == primaryKey.Name.ToLower())
                 {
                     //check the id value
                     il.Emit(OpCodes.Ldarg_0);//[instance][T]

@@ -2,6 +2,10 @@
 using Xunit;
 using GGM.ORMTest.Entity;
 using GGM.ORM.QueryBuilder;
+using GGM.ORM;
+using System.Linq;
+using System.Reflection;
+using GGM.ORM.Attribute;
 
 namespace GGM.ORMTest.UnitTest
 {
@@ -16,58 +20,88 @@ namespace GGM.ORMTest.UnitTest
             withID.Address = "Gangnam";
             withID.Email = "yesyes@naver.com";
             withID.Age = 29;
+
+            type = withID.GetType();
+            propertyInfos = type.GetProperties();
+            columnInfos = type.GetProperties().Select(info => new ColumnInfo(info, info.GetCustomAttribute<ColumnAttribute>())).Where(info => info.ColumnAttribute != null).ToArray();
         }
 
         DefaultQueryBuilder<Person> queryBuilder;
         Person withID;
-
+        ColumnInfo[] columnInfos;
+        Type type;
+        PropertyInfo[] propertyInfos;
+        
+        
         [Fact]
-        public string ReadQueryBuildeTestr()
+        public void ReadQueryBuildeTestr()
         {
-            return queryBuilder.Read(4);
+            int id = 4;
+            var query = queryBuilder.Read(id);
+            var result = $"SELECT {string.Join(",", columnInfos.Select(info => info.Name))} FROM person WHERE id = {id}";
+            Assert.Equal(query, result);
         }
 
         [Fact]
-        public string ReadAllQueryBuilderTest()
+        public void ReadAllQueryBuilderTest()
         {
-            return queryBuilder.ReadAll();
+            var query = queryBuilder.ReadAll();
+            var result = $"SELECT {string.Join(",", columnInfos.Select(info => info.Name))} FROM person";
+           
+            Assert.Equal(query, result);
         }
 
         [Fact]
-        public string ReadAllParamQueryBuilderTest()
+        public void ReadAllParamQueryBuilderTest()
         {
-            return queryBuilder.ReadAll(new { id = 1, name = "jin", age = 27, address = "Seoul", email = "A@aa.a" });
+            var param = new { id = 1, name = "jin", age = 27, address = "Seoul", email = "A@aa.a" };
+            var query = queryBuilder.ReadAll(param);
+            var result = $"SELECT {string.Join(",", columnInfos.Select(info => info.Name))} FROM person WHERE {string.Join(" AND ", columnInfos.Select(info => info.ParameterExpression))}";
+            Assert.Equal(query, result);
         }
 
         [Fact]
-        public string CreateQueryBuilderTest()
+        public void CreateQueryBuilderTest()
         {
-            return queryBuilder.Create();
+            var query = queryBuilder.Create();
+            var result = string.Concat("INSERT INTO person VALUES(); SELECT LAST_INSERT_ID();");
+            Assert.Equal(query, result);
         }
 
         [Fact]
-        public string CreateDataQueryBuilderTest()
+        public void CreateDataQueryBuilderTest()
         {
-            return queryBuilder.Create(withID);
+            var query = queryBuilder.Create(withID);
+            var result = $"INSERT INTO person VALUES ({string.Join(" , ", columnInfos.Select(info => info.ParameterName))}); SELECT LAST_INSERT_ID();";
+            Assert.Equal(query, result);
         }
 
         [Fact]
-        public string UpdateQueryBuilderTest()
+        public void UpdateQueryBuilderTest()
         {
-            return queryBuilder.Update(1,withID);
+            int id = 1;
+            var query = queryBuilder.Update(id,withID);
+            var result = $"UPDATE person SET {string.Join(",", columnInfos.Select(info => info.ParameterExpression))}  WHERE id = {id}";
+            Assert.Equal(query, result);
         }
 
         [Fact]
-        public string DeleteQueryBuilderTest()
+        public void DeleteQueryBuilderTest()
         {
-            return queryBuilder.Delete(1);
+            int id = 1;
+            var query = queryBuilder.Delete(id);
+            var result = string.Concat("DELETE FROM person WHERE id = ", id);
+            Assert.Equal(query, result);
         }
 
 
         [Fact]
-        public string DeleteAllQueryBuilderTest()
+        public void DeleteAllQueryBuilderTest()
         {
-            return queryBuilder.DeleteAll(new { id = 1, name = "jin", age = 27, address = "Seoul", email = "A@aa.a" });
+            var param = new { id = 1, name = "jin", age = 27, address = "Seoul", email = "A@aa.a" };
+            var query =  queryBuilder.DeleteAll(param);
+            var result = $"DELETE FROM person WHERE {string.Join(" AND ", columnInfos.Select(info => info.ParameterExpression))}";
+            Assert.Equal(query, result);
         }
     }
 }
