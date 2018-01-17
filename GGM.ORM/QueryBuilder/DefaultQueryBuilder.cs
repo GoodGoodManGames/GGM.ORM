@@ -46,6 +46,11 @@ namespace GGM.ORM.QueryBuilder
 
         }
 
+        public string DeleteAll()
+        {
+            return $"TRUNCATE {TableName}";
+        }
+
         public string Read(int id)
         {
             return $"SELECT {string.Join(",", ColumnInfos.Select(info => info.Name))} FROM {TableName} WHERE {PrimaryKeyName} = {id}";
@@ -65,5 +70,6 @@ namespace GGM.ORM.QueryBuilder
         {
             return $"UPDATE {TableName} SET {string.Join(",", ColumnInfos.Select(info => info.ParameterExpression))}  WHERE {PrimaryKeyName} = {id}";
         }
+        
     }
 }
