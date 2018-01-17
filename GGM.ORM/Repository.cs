@@ -21,7 +21,7 @@ namespace GGM.ORM
             ConstructInstanceCache = new Dictionary<Type, ConstructInstance>();
             ConstructNullInstanceCache = new Dictionary<Type, ConstructNullInstance>();
             ConstructDataInstanceCache = new Dictionary<Type, ConstructDataInstance>();
-            ConstructInstancesCache = new Dictionary<Type, ConstructInstances>();
+
 
             EntityManager = EntityManagerFactory.CreateFactory(assemblyName, classPath, dbOptions).CreateEntityManager();
             QueryBuilder = queryBuilder;
@@ -34,14 +34,13 @@ namespace GGM.ORM
         public delegate T ConstructNullInstance(int id);
         public delegate T ConstructInstance(IDataReader reader);
         public delegate T ConstructDataInstance(T data, int id);
-        public delegate List<T> ConstructInstances(IDataReader reader);
+
         
         public Dictionary<Type, FillParamInfoGenerator> ParameterGeneratorCache { get; set; }
         public Dictionary<Type, FillDataInfoGenerator> DataParamGeneratorCache { get; set; }
         public Dictionary<Type, ConstructInstance> ConstructInstanceCache { get; set; }
         public Dictionary<Type, ConstructNullInstance> ConstructNullInstanceCache { get; set; }
-        public Dictionary<Type, ConstructDataInstance> ConstructDataInstanceCache { get; set; }
-        public Dictionary<Type, ConstructInstances> ConstructInstancesCache { get; set; }
+        public Dictionary<Type, ConstructDataInstance> ConstructDataInstanceCache { get; set; }      
         public EntityManager EntityManager { get; }
         public IQueryBuilder<T> QueryBuilder { get; }
         public ColumnInfo[] ColumnInfos { get; set; }
@@ -52,14 +51,20 @@ namespace GGM.ORM
             command.CommandText = QueryBuilder.Read(id);
             command.CommandType = CommandType.Text;
             EntityManager.Connection.Open();
-            DbDataReader reader = command.ExecuteReader();
+            
+            T result = default(T);
+            using (var reader = command.ExecuteReader())
+            {
+                reader.Read();
+                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
+                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                result = constructingInstance(reader);
+            }
 
-            if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
-                ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
-            var constructingInstance = ConstructInstanceCache[reader.GetType()];
-            var result = constructingInstance(reader);
 
             EntityManager.Connection.Close();
+            
             return result;
         }
 
@@ -72,14 +77,24 @@ namespace GGM.ORM
                 ParameterGeneratorCache.Add(param.GetType(), CreateParamInfoGenerator(param));
             var fillParameterGenerator = ParameterGeneratorCache[param.GetType()];
             fillParameterGenerator(command, param);
+
             EntityManager.Connection.Open();
-            DbDataReader reader = command.ExecuteReader();
-            if (!ConstructInstancesCache.ContainsKey(reader.GetType()))
-                ConstructInstancesCache.Add(reader.GetType(), CreateConstructInstances(reader));
-            var constructingInstances = ConstructInstancesCache[reader.GetType()];
-            var result = constructingInstances(reader);
+
+            using (var reader = command.ExecuteReader())
+            {
+
+                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
+                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+
+                while (reader.Read())
+                {
+                    object row = constructingInstance(reader);
+                    yield return (T) row;
+                }
+            }
+
             EntityManager.Connection.Close();
-            return result;
         }
 
         public IEnumerable<T> ReadAll()
@@ -87,16 +102,25 @@ namespace GGM.ORM
             DbCommand command = EntityManager.Connection.CreateCommand();
             command.CommandText = QueryBuilder.ReadAll();
             command.CommandType = CommandType.Text;
-            EntityManager.Connection.Open();
 
-            DbDataReader reader = command.ExecuteReader();
-            if (!ConstructInstancesCache.ContainsKey(reader.GetType()))
-                ConstructInstancesCache.Add(reader.GetType(), CreateConstructInstances(reader));
-            var constructingInstances = ConstructInstancesCache[reader.GetType()];
-            var result = constructingInstances(reader);
+            EntityManager.Connection.Open();
+            using (var reader = command.ExecuteReader())
+            {
+                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
+                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+
+                while (reader.Read())
+                {
+                    object row = constructingInstance(reader);
+                    yield return (T) row;
+                }
+            }
+
             EntityManager.Connection.Close();
-            return result;
         }
+        
+
 
         public T Create()
         {
@@ -163,6 +187,16 @@ namespace GGM.ORM
             EntityManager.Connection.Close();
         }
 
+        public void DeleteAll()
+        {
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.DeleteAll();
+            command.CommandType = CommandType.Text;
+            EntityManager.Connection.Open();
+            command.ExecuteNonQuery();
+            EntityManager.Connection.Close();
+        }
+
         public void DeleteAll(object param)
         {
             DbCommand command = EntityManager.Connection.CreateCommand();
@@ -180,7 +214,6 @@ namespace GGM.ORM
         //param으로부터 값들을 받아 Parameter를 채운다
         private FillParamInfoGenerator CreateParamInfoGenerator(object param)
         {
-
             var parameterType = param.GetType();
             var propertyInfos = parameterType.GetProperties();
             var dynamicMethod = new DynamicMethod("CreateParameterGenerator", null, new[] { typeof(IDbCommand), typeof(object) });
@@ -296,10 +329,6 @@ namespace GGM.ORM
             il.Emit(OpCodes.Newobj, constructor); //[instance]
             il.MarkLabel(startLoop);
 
-            il.Emit(OpCodes.Ldarg_0); //[instance][IDataReader]
-            il.Emit(OpCodes.Call, typeof(IDataReader).GetMethod(nameof(IDataReader.Read))); //[instance][Bool:CheckNext]
-            il.Emit(OpCodes.Brfalse, endLoop); //[instance]
-
             PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             foreach (PropertyInfo property in properties)
             {
@@ -402,74 +431,6 @@ namespace GGM.ORM
             il.Emit(OpCodes.Ret);
 
             return (ConstructDataInstance)dynamicMethod.CreateDelegate(typeof(ConstructDataInstance));
-        }
-
-
-        //DataReader로부터 데이터를 받아 인스턴스들을 만든다
-        private ConstructInstances CreateConstructInstances(IDataReader reader)
-        {
-            var listType = typeof(List<T>);
-            var type = typeof(T);
-            var dynamicMethod = new DynamicMethod("ConstructInstances", typeof(List<T>), new[] { typeof(IDataReader) });
-            var il = dynamicMethod.GetILGenerator();
-            Label startLoop = il.DefineLabel();
-            Label endLoop = il.DefineLabel();
-
-            ConstructorInfo constructorList = listType.GetConstructor(Type.EmptyTypes);
-            il.Emit(OpCodes.Newobj, constructorList); //[listInstance]
-            il.MarkLabel(startLoop);
-
-            //Check Follow
-            il.Emit(OpCodes.Dup);//[listInstance][listInstance]
-            il.Emit(OpCodes.Ldarg_0); //[listInstance][listInstance][IDataReader]
-            il.Emit(OpCodes.Call, typeof(IDataReader).GetMethod(nameof(IDataReader.Read))); //[listInstance][listInstance][CheckNext]
-            il.Emit(OpCodes.Brfalse, endLoop); //[listInstance][listInstance]
-
-            ConstructorInfo constructor = type.GetConstructor(Type.EmptyTypes);
-            il.Emit(OpCodes.Newobj, constructor); //[listInstance][listInstance][instance]
-
-
-            PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-            foreach (PropertyInfo property in properties)
-            {
-                Label startValueTypeNullLoop = il.DefineLabel();
-                Label endValueTypeNullLoop = il.DefineLabel();
-                Label jumpToEnd = il.DefineLabel();
-
-                var columnAttribute = property.GetCustomAttribute<ColumnAttribute>();
-                AttributeException.Check(columnAttribute != null, AttributeError.NotExistColumnAttribute);
-                var columnName = columnAttribute.Name ?? property.Name;
-                //SetValue
-                il.Emit(OpCodes.Dup); //[instance][instance]
-                il.Emit(OpCodes.Ldarg_0); //[instance][instance][IDataReader]
-                il.Emit(OpCodes.Ldstr, columnName); //[instance][instance][IDataReader][Name]
-                il.Emit(OpCodes.Call, typeof(IDataReaderHelper).GetMethod(nameof(IDataReaderHelper.GetValue)));//[instance][instance][value]
-                il.Emit(OpCodes.Dup);//[instance][instance][value][value]
-                il.Emit(OpCodes.Ldsfld, typeof(DBNull).GetField(nameof(DBNull.Value))); //[instance][instance][value][value][DBNullValue]
-                il.Emit(OpCodes.Ceq);// [instance][instance][value][result]
-                il.Emit(OpCodes.Brtrue, startValueTypeNullLoop);//[instance][instance]
-                if (property.PropertyType.IsValueType)
-                    il.Emit(OpCodes.Unbox_Any, property.PropertyType);//[instance][instance][unbox_value]
-                il.MarkLabel(endValueTypeNullLoop);
-                il.Emit(OpCodes.Call, property.GetSetMethod());//[instance]
-                il.Emit(OpCodes.Br, jumpToEnd);
-
-                il.MarkLabel(startValueTypeNullLoop);
-                if (property.PropertyType.IsValueType)
-                {
-                    il.Emit(OpCodes.Pop);//[instance][instance]
-                    il.Emit(OpCodes.Ldc_I4_0);//[instance][instance][0]
-                }
-                il.Emit(OpCodes.Br, endValueTypeNullLoop);
-                il.MarkLabel(jumpToEnd);
-            }
-            il.Emit(OpCodes.Call, typeof(List<T>).GetMethod(nameof(List<T>.Add))); //[listInstance] 
-            il.Emit(OpCodes.Br, startLoop);//[listInstance]
-            il.MarkLabel(endLoop); //[listInstance][listInstance]
-            il.Emit(OpCodes.Pop);//[listINstance]
-            il.Emit(OpCodes.Ret);
-
-            return (ConstructInstances)dynamicMethod.CreateDelegate(typeof(ConstructInstances));
         }
 
         private static DbType LookupDbType(Type type)

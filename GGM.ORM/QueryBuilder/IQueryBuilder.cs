@@ -14,5 +14,6 @@ namespace GGM.ORM.QueryBuilder
         string Update(int id, T data);
         string Delete(int id);
         string DeleteAll(object param);
+        string DeleteAll();
     }
 }
