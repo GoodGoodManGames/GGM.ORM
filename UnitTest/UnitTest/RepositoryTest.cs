@@ -4,6 +4,7 @@ using GGM.ORMTest.Entity;
 using System.Data.Common;
 using System.Data;
 using System.Reflection;
+using System.Linq;
 
 namespace GGM.ORMTest.UnitTest
 {
@@ -30,29 +31,6 @@ namespace GGM.ORMTest.UnitTest
         PersonRepository repository;
         Person withoutID;
         Person withID;
-        
-        
-
-        [Fact]
-        public void ReadAllTest()
-        {
-            var readAll =repository.ReadAll();
-            Assert.NotNull(readAll);
-        }
-
-        [Fact]
-        public void ReadAllParamTest()
-        {
-            var readAllParam = repository.ReadAll(new { id = 1, name = "jinwoo", age = 26, address = "Seoul", email = "jinwoo710@naver.com" });
-            Assert.NotNull(readAllParam);
-        }
-
-        [Fact]
-        public void ReadSingleTest()
-        {
-            var readSingle = repository.Read(1);
-            Assert.NotNull(readSingle);
-        }
 
         [Fact]
         public void CreateNullTest()
@@ -72,33 +50,89 @@ namespace GGM.ORMTest.UnitTest
             Assert.NotNull(createWithID);
             Assert.NotNull(createWithoutID);
         }
+        
+        [Fact]
+        public void DeleteAllTest()
+        {
+            repository.DeleteAll();
+            var result = repository.ReadAll().GetEnumerator();
+            result.MoveNext();
+            Assert.Null(result.Current);
+        }
 
         [Fact]
         public void DeleteTest()
         {
-            int id = 1151;
+            repository.DeleteAll();
+            repository.Create(withID);
+            int id = 25;
             repository.Delete(id);
             var result = repository.Read(id);
             Assert.Equal(0,result.ID);           
         }
         
         [Fact]
-        public void DeleteAllTest()
+        public void DeleteAllParamTest()
         {
-            
-            var param = new { id = 151, name = "withoutID", age = 28, address = "Busan", email = "withOutID@naver.com" };
+            repository.DeleteAll();
+            repository.Create(withID);
+            var param = new { id = 25, name = "withID", age = 29, address = "Gangnam", email = "yesyes@naver.com" };
             repository.DeleteAll(param);
 
             var result = repository.ReadAll(param).GetEnumerator();
             result.MoveNext();
             Assert.Null(result.Current);
         }
-        
+
         [Fact]
+        public void ReadAllTest()
+        {
+            repository.DeleteAll();
+            repository.Create();
+            repository.Create();
+            repository.Create();
+            repository.Create(withoutID);
+            repository.Create(withoutID);
+            repository.Create(withoutID);
+            repository.Create(withID);
+            var data = repository.ReadAll();
+            var dataCount = data.Count();
+            Assert.NotEqual(0, dataCount);
+        }
+
+        [Fact]
+        public void ReadAllParamTest()
+        {
+            repository.DeleteAll();
+            repository.Create();
+            repository.Create();
+            repository.Create();
+            repository.Create(withID);
+            var data = repository.ReadAll(new { id = 25, name = "withID", age = 29, address = "Gangnam", email = "yesyes@naver.com" });
+            var dataCount = data.Count();
+            Assert.NotEqual(0, dataCount);
+        }
+
+        //[Fact]
+        public void ReadSingleTest()
+        {
+            repository.DeleteAll();
+            repository.Create();
+            var readSingle = repository.Read(1);
+            Assert.NotNull(readSingle);
+            repository.DeleteAll();
+            repository.Create(withoutID);
+            var readSingleAgain = repository.Read(1);
+            Assert.NotNull(readSingleAgain);
+        }
+
+        //[Fact]
         public void UpdateWithDataTest()
         {
-            int id = 152;
-            repository.Update(id, withID);
+            repository.DeleteAll();
+            repository.Create(withID);
+            int id = 25;
+            repository.Update(id, withoutID);
 
             var result = repository.Read(id);
             var copyWithID = withID;
