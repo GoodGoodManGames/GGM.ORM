@@ -1,11 +1,10 @@
-﻿using System;
+using System;
 using Xunit;
 using GGM.ORMTest.Entity;
 using System.Data.Common;
 using System.Data;
 using System.Reflection;
 using System.Linq;
-
 
 namespace GGM.ORMTest.UnitTest
 {
@@ -31,7 +30,9 @@ namespace GGM.ORMTest.UnitTest
 
         PersonRepository repository;
         Person withoutID;
-        Person withID;[Fact]
+        Person withID;
+
+        [Fact]
         public void CreateNullTest()
         {
             var createNullInstance = repository.Create();
@@ -81,22 +82,6 @@ namespace GGM.ORMTest.UnitTest
             var result = repository.ReadAll(param).GetEnumerator();
             result.MoveNext();
             Assert.Null(result.Current);
-        }
-
-        [Fact]
-        public void ReadAllTest()
-        {
-            repository.DeleteAll();
-            repository.Create();
-            repository.Create();
-            repository.Create();
-            repository.Create(withoutID);
-            repository.Create(withoutID);
-            repository.Create(withoutID);
-            repository.Create(withID);
-            var data = repository.ReadAll();
-            var dataCount = data.Count();
-            Assert.NotEqual(0, dataCount);
         }
 
         [Fact]
