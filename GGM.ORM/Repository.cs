@@ -71,6 +71,7 @@ namespace GGM.ORM
 
         public IEnumerable<T> ReadAll(object param)
         {
+            ParameterException.Check(param != null, ParameterError.NotExistParameter);
             DbCommand command = EntityManager.Connection.CreateCommand();
             command.CommandText = QueryBuilder.ReadAll(param);
             command.CommandType = CommandType.Text;
@@ -135,7 +136,7 @@ namespace GGM.ORM
             EntityManager.Connection.Close();
 
             if (!ConstructNullInstanceCache.ContainsKey(id.GetType()))
-                ConstructNullInstanceCache.Add(id.GetType(), CreateConstructNullInstance(id));
+                ConstructNullInstanceCache.Add(id.GetType(), CreateConstructNullInstance());
             var constructingInstance = ConstructNullInstanceCache[id.GetType()];
             var result = constructingInstance(id);
             return result;
@@ -144,6 +145,7 @@ namespace GGM.ORM
 
         public T Create(T data)
         {
+            ParameterException.Check(data != null, ParameterError.NotExistData);
             DbCommand command = EntityManager.Connection.CreateCommand();
             command.CommandText = QueryBuilder.Create(data);
             command.CommandType = CommandType.Text;
@@ -157,7 +159,7 @@ namespace GGM.ORM
             EntityManager.Connection.Close();
 
             if (!ConstructDataInstanceCache.ContainsKey(data.GetType()))
-                ConstructDataInstanceCache.Add(data.GetType(), CreateConstructDataInstance(data, id));
+                ConstructDataInstanceCache.Add(data.GetType(), CreateConstructDataInstance());
             var constructingInstance = ConstructDataInstanceCache[data.GetType()];
             var result = constructingInstance(data, id);
             return result;
@@ -165,6 +167,7 @@ namespace GGM.ORM
 
         public void Update(int id, T data)
         {
+            ParameterException.Check(data != null, ParameterError.NotExistData);
             DbCommand command = EntityManager.Connection.CreateCommand();
             command.CommandText = QueryBuilder.Update(id, data);
             command.CommandType = CommandType.Text;
@@ -201,6 +204,7 @@ namespace GGM.ORM
 
         public void DeleteAll(object param)
         {
+            ParameterException.Check(param != null, ParameterError.NotExistParameter);
             DbCommand command = EntityManager.Connection.CreateCommand();
             command.CommandText = QueryBuilder.DeleteAll(param);
             command.CommandType = CommandType.Text;
@@ -216,6 +220,7 @@ namespace GGM.ORM
         //param으로부터 값들을 받아 Parameter를 채운다
         private FillParamInfoGenerator CreateParamInfoGenerator(object param)
         {
+            ParameterException.Check(param != null, ParameterError.NotExistParameter);
             var parameterType = param.GetType();
             var propertyInfos = parameterType.GetProperties();
             var dynamicMethod = new DynamicMethod("CreateParameterGenerator", null, new[] { typeof(IDbCommand), typeof(object) });
@@ -261,7 +266,7 @@ namespace GGM.ORM
         //Parameter의 @id 부분은 id로, 나머지는 data의 값을 채워넣는다
         private FillDataInfoGenerator CreateDataInfoGenerator(Object data, int id)
         {
-
+            ParameterException.Check(data != null, ParameterError.NotExistData);
             var type = data.GetType();
             var propertyInfos = type.GetProperties();
             ColumnInfos = type.GetProperties().Select(info => new ColumnInfo(info, info.GetCustomAttribute<ColumnAttribute>())).Where(info => info.ColumnAttribute != null).ToArray();
@@ -321,6 +326,7 @@ namespace GGM.ORM
         //DataReader로 부터 값들을 읽어 인스턴스를 만든다
         private ConstructInstance CreateConstructInstance(IDataReader reader)
         {
+            ParameterException.Check(reader != null, ParameterError.NotExistReader);
             var type = typeof(T);
             var dynamicMethod = new DynamicMethod("ConstructInstance", type, new[] { typeof(IDataReader) }, type);
             var il = dynamicMethod.GetILGenerator();
@@ -371,7 +377,7 @@ namespace GGM.ORM
         }
 
         //id만 존재하는 인스턴스를 만든다
-        private ConstructNullInstance CreateConstructNullInstance(int id)
+        private ConstructNullInstance CreateConstructNullInstance()
         {
             var type = typeof(T);
             var dynamicMethod = new DynamicMethod("ConstructNullInstance", type, new[] { typeof(Int32) }, type);
@@ -390,7 +396,7 @@ namespace GGM.ORM
         }
 
         //id값과 데이터의 값을 받아 인스턴스를 만든다
-        private ConstructDataInstance CreateConstructDataInstance(T data, int id)
+        private ConstructDataInstance CreateConstructDataInstance()
         {
             var type = typeof(T);
             var dynamicMethod = new DynamicMethod("ConstructDataInstance", type, new[] { typeof(T), typeof(Int32) }, type);
@@ -439,9 +445,12 @@ namespace GGM.ORM
         {
             if (type == typeof(int))
                 return DbType.Int32;
-            if (type == typeof(string))
+            else if (type == typeof(string))
                 return DbType.String;
-            return DbType.Object;
+            else
+            {
+                throw new ParameterException(ParameterError.NotExistType);
+            }
         }
     }
 

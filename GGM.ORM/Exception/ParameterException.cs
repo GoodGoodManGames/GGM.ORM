@@ -6,7 +6,7 @@ namespace GGM.ORM.Exception
 {
     public enum ParameterError
     {
-        NotExistType,
+        NotExistType, NotExistReader, NotExistData, NotExistParameter
     }
 
     public class ParameterException : System.Exception
