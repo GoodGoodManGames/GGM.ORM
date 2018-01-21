@@ -85,22 +85,6 @@ namespace GGM.ORMTest.UnitTest
         }
 
         [Fact]
-        public void ReadAllTest()
-        {
-            repository.DeleteAll();
-            repository.Create();
-            repository.Create();
-            repository.Create();
-            repository.Create(withoutID);
-            repository.Create(withoutID);
-            repository.Create(withoutID);
-            repository.Create(withID);
-            var data = repository.ReadAll();
-            var dataCount = data.Count();
-            Assert.NotEqual(0, dataCount);
-        }
-
-        [Fact]
         public void ReadAllParamTest()
         {
             repository.DeleteAll();

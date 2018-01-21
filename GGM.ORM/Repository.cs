@@ -22,7 +22,6 @@ namespace GGM.ORM
             ConstructNullInstanceCache = new Dictionary<Type, ConstructNullInstance>();
             ConstructDataInstanceCache = new Dictionary<Type, ConstructDataInstance>();
 
-
             EntityManager = EntityManagerFactory.CreateFactory(assemblyName, classPath, dbOptions).CreateEntityManager();
             QueryBuilder = queryBuilder;
             if (QueryBuilder == null)
@@ -34,13 +33,13 @@ namespace GGM.ORM
         public delegate T ConstructNullInstance(int id);
         public delegate T ConstructInstance(IDataReader reader);
         public delegate T ConstructDataInstance(T data, int id);
-
         
         public Dictionary<Type, FillParamInfoGenerator> ParameterGeneratorCache { get; set; }
         public Dictionary<Type, FillDataInfoGenerator> DataParamGeneratorCache { get; set; }
         public Dictionary<Type, ConstructInstance> ConstructInstanceCache { get; set; }
         public Dictionary<Type, ConstructNullInstance> ConstructNullInstanceCache { get; set; }
         public Dictionary<Type, ConstructDataInstance> ConstructDataInstanceCache { get; set; }      
+
         public EntityManager EntityManager { get; }
         public IQueryBuilder<T> QueryBuilder { get; }
         public ColumnInfo[] ColumnInfos { get; set; }
