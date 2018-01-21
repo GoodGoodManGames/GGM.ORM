@@ -1,4 +1,4 @@
-﻿using GGM.ORM.Attribute;
+using GGM.ORM.Attribute;
 using GGM.ORM.QueryBuilder;
 using System;
 using System.Collections;

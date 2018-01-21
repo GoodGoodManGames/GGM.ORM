@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Xunit;
 using GGM.ORMTest.Entity;
 using System.Data.Common;
