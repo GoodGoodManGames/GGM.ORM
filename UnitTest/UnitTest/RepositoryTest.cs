@@ -6,6 +6,7 @@ using System.Data;
 using System.Reflection;
 using System.Linq;
 
+
 namespace GGM.ORMTest.UnitTest
 {
     public class RepositoryTest
@@ -30,9 +31,7 @@ namespace GGM.ORMTest.UnitTest
 
         PersonRepository repository;
         Person withoutID;
-        Person withID;
-
-        [Fact]
+        Person withID;[Fact]
         public void CreateNullTest()
         {
             var createNullInstance = repository.Create();
