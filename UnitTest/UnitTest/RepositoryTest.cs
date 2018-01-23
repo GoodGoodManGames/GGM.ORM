@@ -5,14 +5,18 @@ using System.Data.Common;
 using System.Data;
 using System.Reflection;
 using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using GGM.ORM;
 
 namespace GGM.ORMTest.UnitTest
 {
-    public class RepositoryTest
+    public class RepositoryTest : IDisposable
     {
         public RepositoryTest()
         {
-            repository = new PersonRepository("UnitTest", "GGM.ORMTest.EntityManagerFactory.MysqlManagerFactory", "Server=203.253.76.178;Database=practice;Uid=ggm_black;pwd=songji710;", null);
+            repository = new PersonRepository("UnitTest", "GGM.ORMTest.EntityManagerFactory.MysqlManagerFactory",
+                "Server=203.253.76.178;Database=practice;Uid=ggm_black;pwd=songji710;", null);
 
             withoutID = new Person();
             withoutID.Name = "withoutID";
@@ -26,8 +30,39 @@ namespace GGM.ORMTest.UnitTest
             withID.Address = "Gangnam";
             withID.Email = "yesyes@naver.com";
             withID.Age = 29;
+
+            var nullCommand = repository.EntityManager.Connection.CreateCommand();
+            nullCommand.CommandText = "INSERT INTO person VALUES();";
+            nullCommand.CommandType = CommandType.Text;
+
+            var withoutIDCommand = repository.EntityManager.Connection.CreateCommand();
+            withoutIDCommand.CommandText =
+                "INSERT INTO person (name,address,email,age) VALUES (\"withoutID\",\"Busan\",\"withOutID@naver.com\",25)";
+            withoutIDCommand.CommandType = CommandType.Text;
+
+            repository.EntityManager.Connection.Open();
+            IsConnectionOpen = true;
+            for (var i = 0; i < 3; i++)
+            {
+                nullCommand.ExecuteNonQuery();
+                withoutIDCommand.ExecuteNonQuery();
+            }
+
+            repository.EntityManager.Connection.Close();
         }
 
+        public void Dispose()
+        {
+            var command = repository.EntityManager.Connection.CreateCommand();
+            command.CommandText = "TRUNCATE person;";
+            command.CommandType = CommandType.Text;
+            if (repository.EntityManager.Connection.State == ConnectionState.Closed)
+                repository.EntityManager.Connection.Open();
+            command.ExecuteNonQuery();
+            repository.EntityManager.Connection.Close();
+        }
+
+        public static bool IsConnectionOpen = false;
         PersonRepository repository;
         Person withoutID;
         Person withID;
@@ -37,96 +72,88 @@ namespace GGM.ORMTest.UnitTest
         {
             var createNullInstance = repository.Create();
             Assert.NotNull(createNullInstance);
-
         }
 
         [Fact]
         public void CreateWithDataTest()
         {
-
             var createWithID = repository.Create(withID);
             var createWithoutID = repository.Create(withoutID);
 
             Assert.NotNull(createWithID);
             Assert.NotNull(createWithoutID);
         }
-        
+
+        [Fact]
+        public void ReadAllParamTest()
+        {
+            repository.Create(withID);
+            var data = repository.ReadAll(new
+            {
+                id = 25,
+                name = "withID",
+                age = 29,
+                address = "Gangnam",
+                email = "yesyes@naver.com"
+            });
+            var dataCount = data.Count();
+            Assert.NotEqual(0, dataCount);
+        }
+
+        [Fact]
+        public void ReadSingleTest()
+        {
+            var readSingleAgain = repository.Read(2);
+            Assert.NotNull(readSingleAgain);
+        }
+
+        [Fact]
+        public void ReadAllTest()
+        {
+            var result = repository.ReadAll();
+            Assert.NotEqual(0, result.Count());
+        }
+
         [Fact]
         public void DeleteAllTest()
         {
             repository.DeleteAll();
-            var result = repository.ReadAll().GetEnumerator();
-            result.MoveNext();
-            Assert.Null(result.Current);
+            var result = repository.ReadAll();
+            Assert.Equal(result.Count(), 0);
         }
 
         [Fact]
         public void DeleteTest()
         {
-            repository.DeleteAll();
-            repository.Create(withID);
-            int id = 25;
+            int id = 1;
             repository.Delete(id);
-            var result = repository.Read(id);
-            Assert.Equal(0,result.ID);           
+            var result = repository.ReadAll();
+            Assert.Equal(result.Count(), 5);
         }
-        
+
         [Fact]
         public void DeleteAllParamTest()
         {
-            repository.DeleteAll();
-            repository.Create(withID);
-            var param = new { id = 25, name = "withID", age = 29, address = "Gangnam", email = "yesyes@naver.com" };
+            var param = new {id = 2, name = "withoutID", age = 25, address = "Busan", email = "withOutID@naver.com"};
             repository.DeleteAll(param);
-
-            var result = repository.ReadAll(param).GetEnumerator();
-            result.MoveNext();
-            Assert.Null(result.Current);
+            var result = repository.ReadAll();
+            Assert.Equal(result.Count(), 5);
         }
 
         [Fact]
-        public void ReadAllParamTest()
-        {
-            repository.DeleteAll();
-            repository.Create();
-            repository.Create();
-            repository.Create();
-            repository.Create(withID);
-            var data = repository.ReadAll(new { id = 25, name = "withID", age = 29, address = "Gangnam", email = "yesyes@naver.com" });
-            var dataCount = data.Count();
-            Assert.NotEqual(0, dataCount);
-        }
-
-        //[Fact]
-        public void ReadSingleTest()
-        {
-            repository.DeleteAll();
-            repository.Create();
-            var readSingle = repository.Read(1);
-            Assert.NotNull(readSingle);
-            repository.DeleteAll();
-            repository.Create(withoutID);
-            var readSingleAgain = repository.Read(1);
-            Assert.NotNull(readSingleAgain);
-        }
-
-        //[Fact]
         public void UpdateWithDataTest()
         {
-            repository.DeleteAll();
-            repository.Create(withID);
-            int id = 25;
-            repository.Update(id, withoutID);
+            repository.Update(5, withoutID);
 
-            var result = repository.Read(id);
-            var copyWithID = withID;
-            copyWithID.ID = id;
+            var result = repository.Read(5);
+            var copyWithID = withoutID;
+            copyWithID.ID = 5;
 
             PropertyInfo[] propertyinfos = typeof(Person).GetProperties(BindingFlags.Public | BindingFlags.Instance);
             foreach (PropertyInfo property in propertyinfos)
             {
-                Assert.True(property.GetValue(copyWithID).Equals( property.GetValue(result)));
+                Assert.True(property.GetValue(copyWithID).Equals(property.GetValue(result)));
             }
-        }  
+        }
     }
 }
