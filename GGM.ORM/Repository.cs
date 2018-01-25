@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using GGM.ORM.Exception;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GGM.ORM
@@ -67,8 +68,6 @@ namespace GGM.ORM
                 var constructingInstance = ConstructInstanceCache[reader.GetType()];
                 result = constructingInstance(reader);
             }
-
-
             EntityManager.Connection.Close();
 
             return result;
@@ -97,10 +96,9 @@ namespace GGM.ORM
                 while (reader.Read())
                 {
                     object row = constructingInstance(reader);
-                    yield return (T)row;
+                    yield return (T) row;
                 }
             }
-
             EntityManager.Connection.Close();
         }
 
@@ -121,7 +119,7 @@ namespace GGM.ORM
                 while (reader.Read())
                 {
                     object row = constructingInstance(reader);
-                    yield return (T)row;
+                    yield return (T) row;
                 }
             }
 
@@ -219,6 +217,188 @@ namespace GGM.ORM
             EntityManager.Connection.Close();
         }
 
+        public async Task<T> CreateAsync()
+        {
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.Create();
+            command.CommandType = CommandType.Text;
+
+            await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+            var id = Convert.ToInt32(await command.ExecuteScalarAsync().ConfigureAwait(false));
+            EntityManager.Connection.Close();
+
+            if (!ConstructNullInstanceCache.ContainsKey(id.GetType()))
+                ConstructNullInstanceCache.Add(id.GetType(), CreateConstructNullInstance());
+            var constructingInstance = ConstructNullInstanceCache[id.GetType()];
+            var result = constructingInstance(id);
+            return result;
+        }
+        
+        public async Task<T> CreateAsync(T data)
+        {
+            ParameterException.Check(data != null, ParameterError.NotExistData);
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.Create(data);
+            command.CommandType = CommandType.Text;
+            if (!ParameterGeneratorCache.ContainsKey(data.GetType()))
+                ParameterGeneratorCache.Add(data.GetType(), CreateParamInfoGenerator(data));
+            var fillParameterGenerator = ParameterGeneratorCache[data.GetType()];
+            fillParameterGenerator(command, data);
+
+            await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+            var id = Convert.ToInt32(await command.ExecuteScalarAsync().ConfigureAwait(false));
+            EntityManager.Connection.Close();
+
+            if (!ConstructDataInstanceCache.ContainsKey(data.GetType()))
+                ConstructDataInstanceCache.Add(data.GetType(), CreateConstructDataInstance());
+            var constructingInstance = ConstructDataInstanceCache[data.GetType()];
+            var result = constructingInstance(data, id);
+            return result;
+        }
+        
+        public async Task<T> ReadAsync(int id)
+        {
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.Read(id);
+            command.CommandType = CommandType.Text;
+            await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+            T result = default(T);
+
+            using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
+            {
+                reader.Read();
+                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
+                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                result = constructingInstance(reader);
+            }
+
+            EntityManager.Connection.Close();
+            return result;
+        }
+
+        public async Task<IEnumerable<T>> ReadAllAsync(object param)
+        {
+            DbDataReader reader = null;
+            IEnumerable<T> result = null;
+            bool isClosed = EntityManager.Connection.State == ConnectionState.Closed;
+            
+            ParameterException.Check(param != null, ParameterError.NotExistParameter);
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.ReadAll(param);
+            command.CommandType = CommandType.Text;
+            if (!ParameterGeneratorCache.ContainsKey(param.GetType()))
+                ParameterGeneratorCache.Add(param.GetType(), CreateParamInfoGenerator(param));
+            var fillParameterGenerator = ParameterGeneratorCache[param.GetType()];
+            fillParameterGenerator(command, param);
+
+            var source = new CancellationTokenSource();
+            var cancelToken = source.Token;
+            var behavior = CommandBehavior.SequentialAccess | CommandBehavior.SingleResult;
+
+            try
+            {
+                await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+                reader = await command.ExecuteReaderAsync(GetBehavior(isClosed, behavior), cancelToken)
+                    .ConfigureAwait(false);
+                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
+                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                isClosed = false;
+                result = ExecuteReaderSync(reader, constructingInstance);
+                return result;
+            }
+
+            finally
+            {
+                if (isClosed) EntityManager.Connection.Close();
+            }
+        }
+
+        public async Task<IEnumerable<T>> ReadAllAsync()
+        {
+            DbDataReader reader = null;
+            IEnumerable<T> result = null;
+            bool isClosed = EntityManager.Connection.State == ConnectionState.Closed;
+            var command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.ReadAll();
+            command.CommandType = CommandType.Text;
+              
+            var source = new CancellationTokenSource();
+            var cancelToken = source.Token;
+            var behavior = CommandBehavior.SequentialAccess | CommandBehavior.SingleResult;
+
+            try
+            {
+                await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+                reader = await command.ExecuteReaderAsync(GetBehavior(isClosed, behavior), cancelToken)
+                    .ConfigureAwait(false);
+                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
+                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                isClosed = false;
+                result = ExecuteReaderSync(reader, constructingInstance);
+                return result;
+            }
+
+            finally
+            {
+                if (isClosed) EntityManager.Connection.Close();
+            }
+        }
+
+        public async Task DeleteAsync(int id)
+        {
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.Delete(id);
+            command.CommandType = CommandType.Text;
+            await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            EntityManager.Connection.Close();
+        }
+
+        public async Task DeleteAllAsync()
+        {
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.DeleteAll();
+            command.CommandType = CommandType.Text;
+            await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            EntityManager.Connection.Close();
+        }
+
+        public async Task DeleteAllAsync(object param)
+        {
+            ParameterException.Check(param != null, ParameterError.NotExistParameter);
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.DeleteAll(param);
+            command.CommandType = CommandType.Text;
+            if (!ParameterGeneratorCache.ContainsKey(param.GetType()))
+                ParameterGeneratorCache.Add(param.GetType(), CreateParamInfoGenerator(param));
+            var fillParameterGenerator = ParameterGeneratorCache[param.GetType()];
+            fillParameterGenerator(command, param);
+            await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            EntityManager.Connection.Close();
+        }
+
+        public async Task UpdateAsync(int id, T data)
+        {
+            ParameterException.Check(data != null, ParameterError.NotExistData);
+            DbCommand command = EntityManager.Connection.CreateCommand();
+            command.CommandText = QueryBuilder.Update(id, data);
+            command.CommandType = CommandType.Text;
+
+            if (!DataParamGeneratorCache.ContainsKey(data.GetType()))
+                DataParamGeneratorCache.Add(data.GetType(), CreateDataInfoGenerator(data, id));
+            var fillParameterGenerator = DataParamGeneratorCache[data.GetType()];
+            fillParameterGenerator(command, data, id);
+
+            await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+            EntityManager.Connection.Close();
+        }
+
         //param으로부터 값들을 받아 Parameter를 채운다
         private FillParamInfoGenerator CreateParamInfoGenerator(object param)
         {
@@ -226,7 +406,7 @@ namespace GGM.ORM
             var parameterType = param.GetType();
             var propertyInfos = parameterType.GetProperties();
             var dynamicMethod = new DynamicMethod("CreateParameterGenerator", null,
-                new[] { typeof(IDbCommand), typeof(object) });
+                new[] {typeof(IDbCommand), typeof(object)});
             var il = dynamicMethod.GetILGenerator();
             var commandIL = il.DeclareLocal(typeof(IDbCommand));
             il.Emit(OpCodes.Ldarg_0); //[DbCommand]
@@ -250,7 +430,7 @@ namespace GGM.ORM
                 // SetDbType
                 DbType dbType = LookupDbType(property.PropertyType);
                 il.Emit(OpCodes.Dup); //[Parameters][DbParameter][DbParameter]
-                il.Emit(OpCodes.Ldc_I4, (int)dbType); //[Parameters][DbParameter][DbParameter][dbType-num]
+                il.Emit(OpCodes.Ldc_I4, (int) dbType); //[Parameters][DbParameter][DbParameter][dbType-num]
                 il.EmitCall(OpCodes.Callvirt,
                     typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType)).GetSetMethod(),
                     null); //[Parameters][DbParameter]
@@ -272,7 +452,7 @@ namespace GGM.ORM
 
             il.Emit(OpCodes.Ret);
 
-            return (FillParamInfoGenerator)dynamicMethod.CreateDelegate(typeof(FillParamInfoGenerator));
+            return (FillParamInfoGenerator) dynamicMethod.CreateDelegate(typeof(FillParamInfoGenerator));
         }
 
         //Parameter의 @id 부분은 id로, 나머지는 data의 값을 채워넣는다
@@ -288,7 +468,7 @@ namespace GGM.ORM
                 ColumnInfos.FirstOrDefault(info => info.PropertyInfo.IsDefined(typeof(PrimaryKeyAttribute)));
 
             var dynamicMethod = new DynamicMethod("CreateDataInfoGenerator", null,
-                new[] { typeof(IDbCommand), typeof(object), typeof(int) });
+                new[] {typeof(IDbCommand), typeof(object), typeof(int)});
             var il = dynamicMethod.GetILGenerator();
             var commandIL = il.DeclareLocal(typeof(IDbCommand));
             il.Emit(OpCodes.Ldarg_0); //[DbCommand]
@@ -297,7 +477,7 @@ namespace GGM.ORM
             {
                 Label isIDProperty = il.DefineLabel();
                 Label endSetValue = il.DefineLabel();
-
+                
                 il.Emit(OpCodes.Ldloc, commandIL); //[DbCommand]
                 il.Emit(OpCodes.Callvirt,
                     typeof(IDbCommand).GetProperty(nameof(IDbCommand.Parameters)).GetGetMethod()); //[Parameters]
@@ -315,7 +495,7 @@ namespace GGM.ORM
                 // SetDbType
                 DbType dbType = LookupDbType(property.PropertyType);
                 il.Emit(OpCodes.Dup); //[Parameters][DbParameter][DbParameter]
-                il.Emit(OpCodes.Ldc_I4, (int)dbType); //[Parameters][DbParameter][DbParameter][dbType-num]
+                il.Emit(OpCodes.Ldc_I4, (int) dbType); //[Parameters][DbParameter][DbParameter][dbType-num]
                 il.EmitCall(OpCodes.Callvirt,
                     typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType)).GetSetMethod(),
                     null); //[Parameters][DbParameter]
@@ -346,7 +526,7 @@ namespace GGM.ORM
 
             il.Emit(OpCodes.Ret);
 
-            return (FillDataInfoGenerator)dynamicMethod.CreateDelegate(typeof(FillDataInfoGenerator));
+            return (FillDataInfoGenerator) dynamicMethod.CreateDelegate(typeof(FillDataInfoGenerator));
         }
 
         //DataReader로 부터 값들을 읽어 인스턴스를 만든다
@@ -354,7 +534,7 @@ namespace GGM.ORM
         {
             ParameterException.Check(reader != null, ParameterError.NotExistReader);
             var type = typeof(T);
-            var dynamicMethod = new DynamicMethod("ConstructInstance", type, new[] { typeof(IDataReader) }, type);
+            var dynamicMethod = new DynamicMethod("ConstructInstance", type, new[] {typeof(IDataReader)}, type);
             var il = dynamicMethod.GetILGenerator();
             Label startLoop = il.DefineLabel();
             Label endLoop = il.DefineLabel();
@@ -404,14 +584,14 @@ namespace GGM.ORM
 
             il.MarkLabel(endLoop);
             il.Emit(OpCodes.Ret);
-            return (ConstructInstance)dynamicMethod.CreateDelegate(typeof(ConstructInstance));
+            return (ConstructInstance) dynamicMethod.CreateDelegate(typeof(ConstructInstance));
         }
 
         //id만 존재하는 인스턴스를 만든다
         private ConstructNullInstance CreateConstructNullInstance()
         {
             var type = typeof(T);
-            var dynamicMethod = new DynamicMethod("ConstructNullInstance", type, new[] { typeof(Int32) }, type);
+            var dynamicMethod = new DynamicMethod("ConstructNullInstance", type, new[] {typeof(Int32)}, type);
             var il = dynamicMethod.GetILGenerator();
             ColumnInfos = type.GetProperties()
                 .Select(info => new ColumnInfo(info, info.GetCustomAttribute<ColumnAttribute>()))
@@ -426,7 +606,7 @@ namespace GGM.ORM
             il.Emit(OpCodes.Call, primaryKey.PropertyInfo.GetSetMethod()); //[instance]
             il.Emit(OpCodes.Ret);
 
-            return (ConstructNullInstance)dynamicMethod.CreateDelegate(typeof(ConstructNullInstance));
+            return (ConstructNullInstance) dynamicMethod.CreateDelegate(typeof(ConstructNullInstance));
         }
 
         //id값과 데이터의 값을 받아 인스턴스를 만든다
@@ -434,7 +614,7 @@ namespace GGM.ORM
         {
             var type = typeof(T);
             var dynamicMethod =
-                new DynamicMethod("ConstructDataInstance", type, new[] { typeof(T), typeof(Int32) }, type);
+                new DynamicMethod("ConstructDataInstance", type, new[] {typeof(T), typeof(Int32)}, type);
             var il = dynamicMethod.GetILGenerator();
             ColumnInfos = type.GetProperties()
                 .Select(info => new ColumnInfo(info, info.GetCustomAttribute<ColumnAttribute>()))
@@ -477,7 +657,7 @@ namespace GGM.ORM
 
             il.Emit(OpCodes.Ret);
 
-            return (ConstructDataInstance)dynamicMethod.CreateDelegate(typeof(ConstructDataInstance));
+            return (ConstructDataInstance) dynamicMethod.CreateDelegate(typeof(ConstructDataInstance));
         }
 
         private static DbType LookupDbType(Type type)
@@ -489,6 +669,24 @@ namespace GGM.ORM
             else
             {
                 throw new ParameterException(ParameterError.NotExistType);
+            }
+        }
+
+
+        private static CommandBehavior GetBehavior(bool close, CommandBehavior @default)
+        {
+            return close ? (@default | CommandBehavior.CloseConnection) : @default;
+        }
+
+        private IEnumerable<T> ExecuteReaderSync(IDataReader reader, ConstructInstance map)
+        {
+            using (reader)
+            {
+                while (reader.Read())
+                {
+                    object row = map(reader);
+                    yield return (T)row;
+                }
             }
         }
     }

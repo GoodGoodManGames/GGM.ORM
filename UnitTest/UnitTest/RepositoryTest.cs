@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using GGM.ORM;
+using Xunit.Sdk;
 
 namespace GGM.ORMTest.UnitTest
 {
@@ -41,7 +42,6 @@ namespace GGM.ORMTest.UnitTest
             withoutIDCommand.CommandType = CommandType.Text;
 
             repository.EntityManager.Connection.Open();
-            IsConnectionOpen = true;
             for (var i = 0; i < 3; i++)
             {
                 nullCommand.ExecuteNonQuery();
@@ -62,16 +62,15 @@ namespace GGM.ORMTest.UnitTest
             repository.EntityManager.Connection.Close();
         }
 
-        public static bool IsConnectionOpen = false;
         PersonRepository repository;
         Person withoutID;
         Person withID;
 
         [Fact]
-        public void CreateNullTest()
+        public void CreateTest()
         {
-            var createNullInstance = repository.Create();
-            Assert.NotNull(createNullInstance);
+            var createInstance = repository.Create();
+            Assert.NotNull(createInstance);
         }
 
         [Fact]
@@ -144,6 +143,90 @@ namespace GGM.ORMTest.UnitTest
         public void UpdateWithDataTest()
         {
             repository.Update(5, withoutID);
+
+            var result = repository.Read(5);
+            var copyWithID = withoutID;
+            copyWithID.ID = 5;
+
+            PropertyInfo[] propertyinfos = typeof(Person).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            foreach (PropertyInfo property in propertyinfos)
+            {
+                Assert.True(property.GetValue(copyWithID).Equals(property.GetValue(result)));
+            }
+        }
+
+        [Fact]
+        public async Task CreateAsyncTest()
+        {
+            var createInstance = await repository.CreateAsync();
+            Assert.NotNull(createInstance);
+        }
+
+        [Fact]
+        public async Task CreateWithDataAsyncTest()
+        {
+            var createWithID = await repository.CreateAsync(withID);
+            var createWithoutID = await repository.CreateAsync(withoutID);
+
+            Assert.NotNull(createWithID);
+            Assert.NotNull(createWithoutID);
+        }
+
+        [Fact]
+        public async Task ReadAsyncTest()
+        {
+            var firstData = await repository.ReadAsync(1).ConfigureAwait(false);
+            var result = firstData.ID;
+            Assert.Equal(result, 1);
+        }
+
+        [Fact]
+        public async Task ReadAllAsyncTest()
+        {
+            var data = await repository.ReadAllAsync().ConfigureAwait(false);
+            var dataResult = data.ToArray();
+            Assert.Equal(dataResult.Count(), 6);
+        }
+
+        [Fact]
+        public async Task ReadAllParamAsyncTest()
+        {
+            var param = new { id = 2, name = "withoutID", age = 25, address = "Busan", email = "withOutID@naver.com" };
+            var data = await repository.ReadAllAsync(param).ConfigureAwait(false);
+            var dataResult = data.ToArray();
+            Assert.Equal(dataResult.Count(), 1);
+        }
+
+        [Fact]
+        public async Task DeleteAsyncTest()
+        {
+            int id = 1;
+            await repository.DeleteAsync(id);
+            var result = repository.ReadAll();
+            Assert.Equal(result.Count(), 5);
+        }
+
+        [Fact]
+        public async Task DeleteAllAsyncTest()
+        {
+            await repository.DeleteAllAsync();
+            var result = repository.ReadAll();
+            Assert.Equal(result.Count(), 0);
+        }
+
+        [Fact]
+        public async Task DeleteAllParamAsyncTest()
+        {
+            var param = new { id = 2, name = "withoutID", age = 25, address = "Busan", email = "withOutID@naver.com" };
+            await repository.DeleteAllAsync(param);
+            var result = repository.ReadAll();
+            Assert.Equal(result.Count(), 5);
+        }
+
+        [Fact]
+        public async Task UpdateWithDataAsyncTest()
+        {
+            await repository.UpdateAsync(5, withoutID);
 
             var result = repository.Read(5);
             var copyWithID = withoutID;
