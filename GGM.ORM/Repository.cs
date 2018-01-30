@@ -63,9 +63,9 @@ namespace GGM.ORM
             using (var reader = command.ExecuteReader())
             {
                 reader.Read();
-                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
-                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
-                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                if (!ConstructInstanceCache.ContainsKey(typeof(T)))
+                    ConstructInstanceCache.Add(typeof(T), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[typeof(T)];
                 result = constructingInstance(reader);
             }
             EntityManager.Connection.Close();
@@ -89,10 +89,9 @@ namespace GGM.ORM
 
             using (var reader = command.ExecuteReader())
             {
-                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
-                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
-                var constructingInstance = ConstructInstanceCache[reader.GetType()];
-
+                if (!ConstructInstanceCache.ContainsKey(typeof(T)))
+                    ConstructInstanceCache.Add(typeof(T), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[typeof(T)];
                 while (reader.Read())
                 {
                     object row = constructingInstance(reader);
@@ -112,9 +111,9 @@ namespace GGM.ORM
 
             using (var reader = command.ExecuteReader())
             {
-                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
-                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
-                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                if (!ConstructInstanceCache.ContainsKey(typeof(T)))
+                    ConstructInstanceCache.Add(typeof(T), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[typeof(T)];
 
                 while (reader.Read())
                 {
@@ -136,9 +135,9 @@ namespace GGM.ORM
             var id = Convert.ToInt32(command.ExecuteScalar());
             EntityManager.Connection.Close();
 
-            if (!ConstructNullInstanceCache.ContainsKey(id.GetType()))
-                ConstructNullInstanceCache.Add(id.GetType(), CreateConstructNullInstance());
-            var constructingInstance = ConstructNullInstanceCache[id.GetType()];
+            if (!ConstructNullInstanceCache.ContainsKey(typeof(T)))
+                ConstructNullInstanceCache.Add(typeof(T), CreateConstructNullInstance());
+            var constructingInstance = ConstructNullInstanceCache[typeof(T)];
             var result = constructingInstance(id);
             return result;
         }
@@ -158,9 +157,9 @@ namespace GGM.ORM
             var id = Convert.ToInt32(command.ExecuteScalar());
             EntityManager.Connection.Close();
 
-            if (!ConstructDataInstanceCache.ContainsKey(data.GetType()))
-                ConstructDataInstanceCache.Add(data.GetType(), CreateConstructDataInstance());
-            var constructingInstance = ConstructDataInstanceCache[data.GetType()];
+            if (!ConstructDataInstanceCache.ContainsKey(typeof(T)))
+                ConstructDataInstanceCache.Add(typeof(T), CreateConstructDataInstance());
+            var constructingInstance = ConstructDataInstanceCache[typeof(T)];
             var result = constructingInstance(data, id);
             return result;
         }
@@ -227,9 +226,9 @@ namespace GGM.ORM
             var id = Convert.ToInt32(await command.ExecuteScalarAsync().ConfigureAwait(false));
             EntityManager.Connection.Close();
 
-            if (!ConstructNullInstanceCache.ContainsKey(id.GetType()))
-                ConstructNullInstanceCache.Add(id.GetType(), CreateConstructNullInstance());
-            var constructingInstance = ConstructNullInstanceCache[id.GetType()];
+            if (!ConstructNullInstanceCache.ContainsKey(typeof(T)))
+                ConstructNullInstanceCache.Add(typeof(T), CreateConstructNullInstance());
+            var constructingInstance = ConstructNullInstanceCache[typeof(T)];
             var result = constructingInstance(id);
             return result;
         }
@@ -249,9 +248,9 @@ namespace GGM.ORM
             var id = Convert.ToInt32(await command.ExecuteScalarAsync().ConfigureAwait(false));
             EntityManager.Connection.Close();
 
-            if (!ConstructDataInstanceCache.ContainsKey(data.GetType()))
-                ConstructDataInstanceCache.Add(data.GetType(), CreateConstructDataInstance());
-            var constructingInstance = ConstructDataInstanceCache[data.GetType()];
+            if (!ConstructDataInstanceCache.ContainsKey(typeof(T)))
+                ConstructDataInstanceCache.Add(typeof(T), CreateConstructDataInstance());
+            var constructingInstance = ConstructDataInstanceCache[typeof(T)];
             var result = constructingInstance(data, id);
             return result;
         }
@@ -267,9 +266,9 @@ namespace GGM.ORM
             using (var reader = await command.ExecuteReaderAsync().ConfigureAwait(false))
             {
                 reader.Read();
-                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
-                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
-                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                if (!ConstructInstanceCache.ContainsKey(typeof(T)))
+                    ConstructInstanceCache.Add(typeof(T), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[typeof(T)];
                 result = constructingInstance(reader);
             }
 
@@ -301,9 +300,9 @@ namespace GGM.ORM
                 await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
                 reader = await command.ExecuteReaderAsync(GetBehavior(isClosed, behavior), cancelToken)
                     .ConfigureAwait(false);
-                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
-                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
-                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                if (!ConstructInstanceCache.ContainsKey(typeof(T)))
+                    ConstructInstanceCache.Add(typeof(T), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[typeof(T)];
                 isClosed = false;
                 result = ExecuteReaderSync(reader, constructingInstance);
                 return result;
@@ -333,9 +332,9 @@ namespace GGM.ORM
                 await EntityManager.Connection.OpenAsync().ConfigureAwait(false);
                 reader = await command.ExecuteReaderAsync(GetBehavior(isClosed, behavior), cancelToken)
                     .ConfigureAwait(false);
-                if (!ConstructInstanceCache.ContainsKey(reader.GetType()))
-                    ConstructInstanceCache.Add(reader.GetType(), CreateConstructInstance(reader));
-                var constructingInstance = ConstructInstanceCache[reader.GetType()];
+                if (!ConstructInstanceCache.ContainsKey(typeof(T)))
+                    ConstructInstanceCache.Add(typeof(T), CreateConstructInstance(reader));
+                var constructingInstance = ConstructInstanceCache[typeof(T)];
                 isClosed = false;
                 result = ExecuteReaderSync(reader, constructingInstance);
                 return result;
