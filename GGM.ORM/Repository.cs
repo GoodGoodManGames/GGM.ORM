@@ -92,7 +92,6 @@ namespace GGM.ORM
                 if (!ConstructInstanceCache.ContainsKey(typeof(T)))
                     ConstructInstanceCache.Add(typeof(T), CreateConstructInstance(reader));
                 var constructingInstance = ConstructInstanceCache[typeof(T)];
-
                 while (reader.Read())
                 {
                     object row = constructingInstance(reader);
