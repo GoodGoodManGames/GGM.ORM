@@ -16,7 +16,7 @@ namespace GGM.ORM
 {
     public abstract class Repository<T> where T : new()
     {
-        public Repository(string assemblyName, string classPath, string dbOptions, IQueryBuilder<T> queryBuilder)
+        public Repository(EntityManagerFactory entityManagerFactory, IQueryBuilder<T> queryBuilder)
         {
             ParameterGeneratorCache = new Dictionary<Type, FillParamInfoGenerator>();
             DataParamGeneratorCache = new Dictionary<Type, FillDataInfoGenerator>();
@@ -24,8 +24,7 @@ namespace GGM.ORM
             ConstructNullInstanceCache = new Dictionary<Type, ConstructNullInstance>();
             ConstructDataInstanceCache = new Dictionary<Type, ConstructDataInstance>();
 
-            EntityManager = EntityManagerFactory.CreateFactory(assemblyName, classPath, dbOptions)
-                .CreateEntityManager();
+            EntityManager = entityManagerFactory.CreateEntityManager();
             QueryBuilder = queryBuilder;
             if (QueryBuilder == null)
                 QueryBuilder = new DefaultQueryBuilder<T>();

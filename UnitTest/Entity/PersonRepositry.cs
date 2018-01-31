@@ -8,7 +8,7 @@ namespace GGM.ORMTest.Entity
 {
     public class PersonRepository : Repository<Person>
     {
-        public PersonRepository(string assemblyName, string entityManagerPath, string dbOptions, IQueryBuilder<Person> queryBuilder) : base(assemblyName, entityManagerPath, dbOptions, null)
+        public PersonRepository(ORM.EntityManagerFactory entityManagerFactory, IQueryBuilder<Person> queryBuilder) : base(entityManagerFactory, null)
         {
         }
     }

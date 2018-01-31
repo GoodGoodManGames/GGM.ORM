@@ -8,13 +8,9 @@ namespace GGM.ORMTest.EntityManagerFactory
 {
     public class MysqlManagerFactory : GGM.ORM.EntityManagerFactory
     {
-        public MysqlManagerFactory(string dbOptions) : base(dbOptions)
-        {
-        }
-
         protected override DbConnection CreateDBConnection()
         {
-            return new MySqlConnection(ConnectionString);
+            return new MySqlConnection("Server=203.253.76.178;Database=practice;Uid=ggm_black;pwd=songji710;");
         }
     }
 }

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using GGM.ORM;
+using GGM.ORMTest.EntityManagerFactory;
 using Xunit.Sdk;
 
 namespace GGM.ORMTest.UnitTest
@@ -16,8 +17,7 @@ namespace GGM.ORMTest.UnitTest
     {
         public RepositoryTest()
         {
-            repository = new PersonRepository("UnitTest", "GGM.ORMTest.EntityManagerFactory.MysqlManagerFactory",
-                "Server=203.253.76.178;Database=practice;Uid=ggm_black;pwd=songji710;", null);
+            repository = new PersonRepository(new MysqlManagerFactory(), null);
 
             withoutID = new Person();
             withoutID.Name = "withoutID";
