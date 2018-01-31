@@ -16,36 +16,39 @@ namespace GGM.ORM
 
         public PropertyInfo PropertyInfo { get; }
         public ColumnAttribute ColumnAttribute { get; }
-        private string mName = string.Empty;
+        private string _name = string.Empty;
+
         public string Name
         {
             get
             {
-                if (string.IsNullOrEmpty(mName))
-                    mName = ColumnAttribute.Name ?? PropertyInfo.Name;
-                return mName;
+                if (string.IsNullOrEmpty(_name))
+                    _name = ColumnAttribute.Name ?? PropertyInfo.Name;
+                return _name;
             }
         }
 
-        private string mParameterName = string.Empty;
+        private string _parameterName = string.Empty;
+
         public string ParameterName
         {
             get
             {
-                if (string.IsNullOrEmpty(mParameterName))
-                    mParameterName = string.Concat("@", Name);
-                return mParameterName;
+                if (string.IsNullOrEmpty(_parameterName))
+                    _parameterName = string.Concat("@", Name);
+                return _parameterName;
             }
         }
 
-        private string mParameterExpression = string.Empty;
+        private string _parameterExpression = string.Empty;
+
         public string ParameterExpression
         {
             get
             {
-                if (string.IsNullOrEmpty(mParameterExpression))
-                    mParameterExpression = string.Format("{0} = @{0}", Name);
-                return mParameterExpression;
+                if (string.IsNullOrEmpty(_parameterExpression))
+                    _parameterExpression = string.Format("{0} = @{0}", Name);
+                return _parameterExpression;
             }
         }
     }

@@ -14,9 +14,6 @@ namespace GGM.ORM
     {
         protected abstract DbConnection CreateDBConnection();
 
-        public EntityManager CreateEntityManager()
-        {
-            return new EntityManager(CreateDBConnection());
-        }
+        public EntityManager CreateEntityManager() => new EntityManager(CreateDBConnection());
     }
 }
