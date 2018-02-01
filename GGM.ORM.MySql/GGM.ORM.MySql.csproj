@@ -14,4 +14,12 @@
     <PackageTags>GGM</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\GGM.ORM\GGM.ORM.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="GGM.Application" Version="1.5.1" />
+    <PackageReference Include="MySql.Data" Version="8.0.10-rc" />
+  </ItemGroup>
 </Project>
