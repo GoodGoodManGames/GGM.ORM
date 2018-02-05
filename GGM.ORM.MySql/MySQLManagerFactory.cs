@@ -16,6 +16,6 @@ namespace GGM.ORM.MySql
 
 
         protected override DbConnection CreateDBConnection() =>
-            new MySqlConnection($"Server={Host};Database={Database};Uid={User};pwd={Password};");
+            new MySqlConnection($"Server={Host};Database={Database};Uid={User};pwd={Password};SslMode=none");
     }
 }
