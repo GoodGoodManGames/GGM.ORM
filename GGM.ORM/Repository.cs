@@ -664,6 +664,8 @@ namespace GGM.ORM
                 return DbType.Int32;
             else if (type == typeof(string))
                 return DbType.String;
+            else if (type == typeof(long))
+                return DbType.Int64;
             else
             {
                 throw new ParameterException(ParameterError.NotExistType);
