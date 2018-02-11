@@ -42,7 +42,8 @@ namespace GGM.ORM.QueryBuilder
 
         public string DeleteAll(object param)
         {
-            return $"DELETE FROM {TableName} WHERE {string.Join(" AND ", ColumnInfos.Select(info => info.ParameterExpression))}";
+            var paramInfos = param.GetType().GetProperties().Select(info => new ParameterInfo(info)).ToArray();
+            return $"DELETE FROM {TableName} WHERE {string.Join(" AND ", paramInfos.Select(info => info.ParameterExpression))}";
 
         }
 
@@ -58,7 +59,8 @@ namespace GGM.ORM.QueryBuilder
 
         public string ReadAll(object param)
         {
-            return $"SELECT {string.Join(",", ColumnInfos.Select(info => info.Name))} FROM {TableName} WHERE {string.Join(" AND ", ColumnInfos.Select(info => info.ParameterExpression))}";
+            var paramInfos = param.GetType().GetProperties().Select(info => new ParameterInfo(info)).ToArray();
+            return $"SELECT {string.Join(",", ColumnInfos.Select(info => info.Name))} FROM {TableName} WHERE {string.Join(" AND ", paramInfos.Select(info => info.ParameterExpression))}";
         }
 
         public string ReadAll()

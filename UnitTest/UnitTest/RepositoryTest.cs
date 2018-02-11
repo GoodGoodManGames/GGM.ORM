@@ -89,14 +89,10 @@ namespace GGM.ORMTest.UnitTest
             repository.Create(withID);
             var data = repository.ReadAll(new
             {
-                id = 25,
-                name = "withID",
-                age = 29,
-                address = "Gangnam",
-                email = "yesyes@naver.com"
+                age = 25
             });
             var dataCount = data.Count();
-            Assert.NotEqual(0, dataCount);
+            Assert.Equal(3,dataCount);
         }
 
         [Fact]
@@ -133,10 +129,10 @@ namespace GGM.ORMTest.UnitTest
         [Fact]
         public void DeleteAllParamTest()
         {
-            var param = new {id = 2, name = "withoutID", age = 25, address = "Busan", email = "withOutID@naver.com"};
+            var param = new {name = "withoutID"};
             repository.DeleteAll(param);
             var result = repository.ReadAll();
-            Assert.Equal(result.Count(), 5);
+            Assert.Equal(result.Count(), 3);
         }
 
         [Fact]
@@ -191,10 +187,10 @@ namespace GGM.ORMTest.UnitTest
         [Fact]
         public async Task ReadAllParamAsyncTest()
         {
-            var param = new { id = 2, name = "withoutID", age = 25, address = "Busan", email = "withOutID@naver.com" };
+            var param = new { age = 25 };
             var data = await repository.ReadAllAsync(param).ConfigureAwait(false);
             var dataResult = data.ToArray();
-            Assert.Equal(dataResult.Count(), 1);
+            Assert.Equal(dataResult.Count(), 3);
         }
 
         [Fact]
@@ -217,10 +213,10 @@ namespace GGM.ORMTest.UnitTest
         [Fact]
         public async Task DeleteAllParamAsyncTest()
         {
-            var param = new { id = 2, name = "withoutID", age = 25, address = "Busan", email = "withOutID@naver.com" };
+            var param = new { email = "withOutID@naver.com" };
             await repository.DeleteAllAsync(param);
             var result = repository.ReadAll();
-            Assert.Equal(result.Count(), 5);
+            Assert.Equal(result.Count(), 3);
         }
 
         [Fact]
