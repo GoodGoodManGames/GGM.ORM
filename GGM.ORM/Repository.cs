@@ -48,7 +48,7 @@ namespace GGM.ORM
 
         public EntityManager EntityManager { get; }
         public IQueryBuilder<T> QueryBuilder { get; }
-        public ColumnInfo[] ColumnInfos { get; set; }
+
 
         public T Read(int id)
         {
@@ -398,7 +398,7 @@ namespace GGM.ORM
         }
 
         //param으로부터 값들을 받아 Parameter를 채운다
-        private FillParamInfoGenerator CreateParamInfoGenerator(object param)
+        private static FillParamInfoGenerator CreateParamInfoGenerator(object param)
         {
             ParameterException.Check(param != null, ParameterError.NotExistParameter);
             var parameterType = param.GetType();
@@ -419,8 +419,13 @@ namespace GGM.ORM
                     typeof(IDbCommand).GetMethod(nameof(IDbCommand.CreateParameter))); //[Parameters] [DbParameter]
 
                 // SetName
+                var columnAttribute = property.GetCustomAttribute<ColumnAttribute>();
+                
                 il.Emit(OpCodes.Dup); //[Parameters][DbParameter][DbParameter]
-                il.Emit(OpCodes.Ldstr, property.Name); //[Parameters][DbParameter][DbParameter][Name]           
+                if(columnAttribute != null)
+                    il.Emit(OpCodes.Ldstr,columnAttribute.Name);//[Parameters][DbParameter][DbParameter][Name] 
+                else
+                    il.Emit(OpCodes.Ldstr, property.Name); //[Parameters][DbParameter][DbParameter][Name]    
                 il.Emit(OpCodes.Callvirt,
                     typeof(IDataParameter).GetProperty(nameof(IDbDataParameter.ParameterName))
                         .GetSetMethod()); //[Parameters][DbParameter]
@@ -454,12 +459,12 @@ namespace GGM.ORM
         }
 
         //Parameter의 @id 부분은 id로, 나머지는 data의 값을 채워넣는다
-        private FillDataInfoGenerator CreateDataInfoGenerator(Object data, int id)
+        private static FillDataInfoGenerator CreateDataInfoGenerator(Object data, int id)
         {
             ParameterException.Check(data != null, ParameterError.NotExistData);
             var type = data.GetType();
             var propertyInfos = type.GetProperties();
-            ColumnInfos = type.GetProperties()
+            ColumnInfo[] ColumnInfos = type.GetProperties()
                 .Select(info => new ColumnInfo(info, info.GetCustomAttribute<ColumnAttribute>()))
                 .Where(info => info.ColumnAttribute != null).ToArray();
             var primaryKey =
@@ -472,10 +477,7 @@ namespace GGM.ORM
             il.Emit(OpCodes.Ldarg_0); //[DbCommand]
             il.Emit(OpCodes.Stloc, commandIL); //Empty
             foreach (var property in propertyInfos)
-            {
-                Label isIDProperty = il.DefineLabel();
-                Label endSetValue = il.DefineLabel();
-                
+            {        
                 il.Emit(OpCodes.Ldloc, commandIL); //[DbCommand]
                 il.Emit(OpCodes.Callvirt,
                     typeof(IDbCommand).GetProperty(nameof(IDbCommand.Parameters)).GetGetMethod()); //[Parameters]
@@ -484,8 +486,10 @@ namespace GGM.ORM
                     typeof(IDbCommand).GetMethod(nameof(IDbCommand.CreateParameter))); //[Parameters] [DbParameter]
 
                 // SetName
+                var columnAttribute = property.GetCustomAttribute<ColumnAttribute>();
+                
                 il.Emit(OpCodes.Dup); //[Parameters][DbParameter][DbParameter]
-                il.Emit(OpCodes.Ldstr, property.Name); //[Parameters][DbParameter][DbParameter][Name]           
+                il.Emit(OpCodes.Ldstr,columnAttribute.Name);//[Parameters][DbParameter][DbParameter][Name] 
                 il.Emit(OpCodes.Callvirt,
                     typeof(IDataParameter).GetProperty(nameof(IDbDataParameter.ParameterName))
                         .GetSetMethod()); //[Parameters][DbParameter]
@@ -499,7 +503,7 @@ namespace GGM.ORM
                     null); //[Parameters][DbParameter]
 
 
-                if (property.Name.ToLower() == primaryKey.Name.ToLower())
+                if (columnAttribute.Name == primaryKey.Name)
                 {
                     //SetIDValue
                     il.Emit(OpCodes.Dup); //[Parameters][DbParameter][DbParameter]
@@ -586,12 +590,12 @@ namespace GGM.ORM
         }
 
         //id만 존재하는 인스턴스를 만든다
-        private ConstructNullInstance CreateConstructNullInstance()
+        private static ConstructNullInstance CreateConstructNullInstance()
         {
             var type = typeof(T);
             var dynamicMethod = new DynamicMethod("ConstructNullInstance", type, new[] {typeof(Int32)}, type);
             var il = dynamicMethod.GetILGenerator();
-            ColumnInfos = type.GetProperties()
+            ColumnInfo[] ColumnInfos = type.GetProperties()
                 .Select(info => new ColumnInfo(info, info.GetCustomAttribute<ColumnAttribute>()))
                 .Where(info => info.ColumnAttribute != null).ToArray();
             var primaryKey =
@@ -614,7 +618,7 @@ namespace GGM.ORM
             var dynamicMethod =
                 new DynamicMethod("ConstructDataInstance", type, new[] {typeof(T), typeof(Int32)}, type);
             var il = dynamicMethod.GetILGenerator();
-            ColumnInfos = type.GetProperties()
+            ColumnInfo[] ColumnInfos = type.GetProperties()
                 .Select(info => new ColumnInfo(info, info.GetCustomAttribute<ColumnAttribute>()))
                 .Where(info => info.ColumnAttribute != null).ToArray();
             var primaryKey =
