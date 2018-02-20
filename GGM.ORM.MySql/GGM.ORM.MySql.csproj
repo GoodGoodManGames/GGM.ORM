@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
-    <Version>0.4.0</Version>
+    <Version>0.4.3</Version>
     <Description>GoodGoodManGames에서 사용하는 ORM 라이브러리 입니다.</Description>
     <Copyright>
     </Copyright>
@@ -14,12 +14,11 @@
     <PackageTags>GGM</PackageTags>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
-  
   <ItemGroup>
     <ProjectReference Include="..\GGM.ORM\GGM.ORM.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="GGM.Application" Version="1.5.1" />
+    <PackageReference Include="GGM.Application" Version="1.6.0" />
     <PackageReference Include="MySql.Data" Version="8.0.10-rc" />
   </ItemGroup>
 </Project>
